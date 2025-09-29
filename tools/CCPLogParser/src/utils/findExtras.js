@@ -67,7 +67,7 @@ const patterns = [
     },
     {
         // eslint-disable-next-line no-useless-escape
-        pattern: /AWSClient:\s<--\sOperation\s'(\w+)'\s(succeeded|failed)[:\. ]{1,3}(\{.+\}){0,2}/,
+        pattern: /AWSClient:\s<--\sOperation\s'(\w+)'\s(succeeded|failed)(?:[\s\S]*?)(\{[\s\S]*\})?/,
         case: 'API_REPLY',
         group: 1,
         messages: 'AWSClient: <-- ',
@@ -180,9 +180,14 @@ handlers.API_REPLY = (input, matched, pattern) => {
     // eslint-disable-next-line prefer-destructuring
     output.status = matched[2];
     output.text = `${matched[2] === 'succeeded' ? '✔ ' : '❗ '}${pattern.messages} '${matched[1]}' ${matched[2]}`;
-    if (matched[2] === 'failed') {
-        output.objects = [JSON.parse(matched[3])];
-        output.highlight = true;
+    if (matched[2] === 'failed' && matched[3] !== undefined) {
+        try {
+            output.objects = [JSON.parse(matched[3])];
+            output.highlight = true;
+        } catch (e) {
+            console.error('Failed to parse JSON:', e);
+            output.objects = [{ error: 'Failed to parse JSON', raw: matched[3] }];
+        }
     }
     if (!index.latency.has(matched[1])) {
         // create key and array for this api now.
